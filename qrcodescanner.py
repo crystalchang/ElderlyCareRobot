@@ -2,7 +2,7 @@ from picamera import PiCamera
 from picamera.array import PiRGBArray
 import cv2
 import time
-import pyzbar.pyzbar as pyzbar
+import zbar
 import numpy as np
 
 camera = PiCamera()
@@ -15,9 +15,10 @@ time.sleep(0.1)
 
 #capture frame by frame
 for frame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
-    image = frame.array
+    image = cv2.imread(frame, 1)
     
-    qrcodes = pyzbar.decode(image)
+    scanner = zbar.Scanner()
+    qrcodes = scanner.scan(image)
     for qr in qrcodes:
         print('Type: ' + qr.type + ' Data: ' + str(qr.data))
         print('Polygon points: ' + str(qr.polygon))
