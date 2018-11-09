@@ -1,7 +1,7 @@
 import serial
 import time
 
-port = "/dev/ttyUSB1"
+port = "/dev/rfcomm0"
 
 ser = serial.Serial(port,115200)
 ser.flushInput()
@@ -9,17 +9,19 @@ curr = 10
 
 def receivefromArduino():
     msg = ser.readline().decode()
-    print("Received: " + str(msg))
+    return msg
+    
 
 def sendtoArduino(n):
-    ser.write(str(n).encode())
-    print(n)
+    ser.write(n.encode())
     time.sleep(5)
     
     
 while True:
-    sendtoArduino(curr)
+    sendtoArduino("sending message, do you receive?")
     time.sleep(5)
-    receivefromArduino()
-    curr += 10
+    msg = receivefromArduino()
+    if (msg):
+        print(msg)
+    
     
