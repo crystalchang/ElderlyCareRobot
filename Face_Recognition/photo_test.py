@@ -1,7 +1,3 @@
-# USAGE
-# python pi_face_recognition.py --cascade haarcascade_frontalface_default.xml --encodings encodings.pickle
-
-# import the necessary packages
 from imutils.video import VideoStream
 from imutils.video import FPS
 import face_recognition
@@ -12,24 +8,17 @@ import time
 import cv2
 import numpy as np
 
-# construct the argument parser and parse the arguments
-#ap = argparse.ArgumentParser()
-#ap.add_argument("-c", "--cascade", required=True,
-#	help = "path to where the face cascade resides")
-#ap.add_argument("-e", "--encodings", required=True,
-#	help="path to serialized db of facial encodings")
-#args = vars(ap.parse_args())
-
-# load the known faces and embeddings along with OpenCV's Haar
-# cascade for face detection
 print("[INFO] loading encodings + face detector...")
 detector=cv2.CascadeClassifier("/home/pi/Desktop/OpenCV/face_detection/haarcascade_frontalface_default.xml")
-data = pickle.loads(open("dlib_encodings.pickle", "rb").read())
-print(data)
-#data = pickle.loads(open(args["encodings"], "rb").read())
-#detector = cv2.CascadeClassifier(args["cascade"])
+image_crystal = "/home/pi/ElderlyCareRobot/Face_Recognition/Dataset/Crystal/10.png"
 
-# initialize the video stream and allow the camera sensor to warm up
+image = cv2.imread(image_crystal)
+rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+boxes = face_recognition.face_locations(rgb,
+        model="hog")
+encoding_crys = face_recognition.face_encodings(rgb, boxes)
+print(encoding_crys)
+
 print("[INFO] starting video stream...")
 #vs = VideoStream(src=0).start()
 vs = VideoStream(usePiCamera=True).start()
@@ -39,12 +28,12 @@ time.sleep(2.0)
 fps = FPS().start()
 
 framecount = 0
-# loop over frames from the video file stream
+
 while True:
 	# grab the frame from the threaded video stream and resize it
 	# to 500px (to speedup processing)
 	frame = vs.read()
-	frame = imutils.resize(frame, width=500)
+	frame = imutils.resize(frame, width=400)
 	
 	# convert the input frame from (1) BGR to grayscale (for face
 	# detection) and (2) from BGR to RGB (for face recognition)
@@ -67,17 +56,8 @@ while True:
 
 	# loop over the facial embeddings
 	for encoding in encodings:
-            distances = face_recognition.face_distance(data["encodings"],
+            confLevels = face_recognition.face_distance(encoding_crys,
                     encoding)
-            name = "Unknown"
-            minDist = np.amin(distances)
-            confidence = 100/(1+minDist)
-            #find max confidence index, return person name
-            threshold = 60
-            if(confidence>threshold):
-                index = np.where(distances == minDist)[0][0]
-                name = data["names"][index] + " "+ str(confidence)[:4] + "%"
-            names.append(name)
 
 	# loop over the recognized faces
 	for ((top, right, bottom, left), name) in zip(boxes, names):
@@ -85,7 +65,7 @@ while True:
 		cv2.rectangle(frame, (left, top), (right, bottom),
 			(0, 255, 0), 2)
 		y = top - 15 if top - 15 > 15 else top + 15
-		cv2.putText(frame, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX,
+		cv2.putText(frame, confLevels, (left, y), cv2.FONT_HERSHEY_SIMPLEX,
 			0.75, (0, 255, 0), 2)
 
 	# display the image to our screen
@@ -107,7 +87,6 @@ while True:
 fps.stop()
 print("[INFO] elasped time: {:.2f}".format(fps.elapsed()))
 print("[INFO] approx. FPS: {:.2f}".format(fps.fps()))
-
 # do a bit of cleanup
 cv2.destroyAllWindows()
 vs.stop()

@@ -13,6 +13,7 @@ import time
 # setting up variables
 lastpos = (0,0,0,0)
 screenRes = [640,480]
+threshold = 0.6
 
 def isDifferent(pos):
     global lastpos
@@ -143,28 +144,22 @@ while True:
         # facial recognition
         boxes = [(y, x + w, y + h, x) for (x, y, w, h) in faces]
         names = []
+        
+        #use confidence value to find best match
         encodings = face_recognition.face_encodings(rgb, boxes)
         
         # match new encodings to known ones
         for encoding in encodings:
-            matches = face_recognition.compare_faces(data["encodings"],
+            distances = face_recognition.face_distance(data["encodings"],
                     encoding)
             name = "Unknown"
-
-            # check for match
-            if True in matches:
-                # find indexes of all matched faces then initialize a
-                # dictionary to count the total number of times each face
-                # was matched
-                matchedIdxs = [i for (i, b) in enumerate(matches) if b]
-                counts = {}
-
-                # get most matched face
-                for i in matchedIdxs:
-                    name = data["names"][i]
-                    counts[name] = counts.get(name, 0) + 1
-                name = max(counts, key=counts.get)
-            
+            minDist = np.amin(distances)
+            confidence = 100/(1+minDist)
+            #find max confidence index, return person name
+            threshold = 60
+            if(confidence>threshold):
+                index = np.where(distances == minDist)[0][0]
+                name = data["names"][index] + " "+ str(confidence)[:4] + "%"
             names.append(name)
         
         # draw rectangles and print name
@@ -196,3 +191,10 @@ print("[INFO] approx FPS: {:.2f}".format(fps.fps()))
 
 cv2.destroyAllWindows()
 vs.stop()
+
+
+
+
+
+
+
