@@ -116,7 +116,7 @@ data = pickle.loads(open("dlib_encodings.pickle", "rb").read())
 # capture frame by frame
 while True:
     frame = vs.read()
-    frame = imutils.resize(frame, width=600)
+    frame = imutils.resize(frame, width=500)
     (h,w) = frame.shape[:2]
     # only run for 1/15 frames
     #if (tmpFrame%15 == 0):
