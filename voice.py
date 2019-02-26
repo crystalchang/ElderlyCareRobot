@@ -3,15 +3,10 @@ import os
 import time
 import json
 from wit import Wit as wit
+import telethontry as tele
+import asyncio
 
-
-access_token = 'YQA4LN7PWPCYQDY2YYFVUFTUXKBC4LIB'
-r = sr.Recognizer()
-mic = sr.Microphone()
-
-interpreter = wit(access_token)
-
-def handle_message(resp):
+async def handle_message(resp):
     try:
         if "intent" not in resp['entities']:
             print("Sorry, I don't understand your intent.")
@@ -33,13 +28,14 @@ def handle_message(resp):
                 print("turning off " + appliance + room + "..")
 
         elif(intent == "call"):
-            contact = resp['entities']['contact'][0]['value']
+            contact = resp['entities']['person'][0]['value']
             print("calling " + contact + "..")
 
         elif(intent == "send_message"):
-            contact = resp['entities']['contact'][0]['value']
+            contact = resp['entities']['person'][0]['value']
             msg = resp['entities']['message_body'][0]['value']
             print("sending " + contact + " :" + msg + "..")
+            await tele.send_to(contact, msg)
 
         elif(intent == "get_weather"):
             # get current location
@@ -55,12 +51,12 @@ def handle_message(resp):
 def recog_callback(r, audio):
     try:
         transcript = r.recognize_google(audio)
-	#transcript = r.recognize_wit(audio, key=access_token)
         print(transcript)
         os.system("say "+ repr(transcript))
         resp = interpreter.message(transcript)
         print(resp)
-        handle_message(resp)
+        loop = asyncio.get_event_loop()
+        loop.run_until_complete(handle_message(resp))
 
     except sr.UnknownValueError:
         print("I could not understand audio")
@@ -68,18 +64,45 @@ def recog_callback(r, audio):
         print("Could not request results from Google service; {0}".format(e))
 	#print("Could not request results from Wit.ai service; {0}".format(e))
 
-with mic as source:
-    r.adjust_for_ambient_noise(source)
+def run():
+    access_token = 'YQA4LN7PWPCYQDY2YYFVUFTUXKBC4LIB'
+    r = sr.Recognizer()
+    mic = sr.Microphone()
+    interpreter = wit(access_token)
 
-stop_listening = r.listen_in_background(mic, recog_callback)
+    with mic as source:
+        r.adjust_for_ambient_noise(source)
 
-# do other things like wait for qr code
-for i in range(50):
+    stop_listening = r.listen_in_background(mic, recog_callback)
+
+def stop():
+    stop_listening(wait_for_stop = False)
     time.sleep(1)
-    print("busy...")
 
-# stop listening
-stop_listening(wait_for_stop = False)
+if __name__ == "__main__":
+    access_token = 'YQA4LN7PWPCYQDY2YYFVUFTUXKBC4LIB'
+    r = sr.Recognizer()
+    mic = sr.Microphone()
 
-# cleaning up
-time.sleep(1)
+    interpreter = wit(access_token)
+
+    with mic as source:
+        r.adjust_for_ambient_noise(source)
+
+
+    stop_listening = r.listen_in_background(mic, recog_callback)
+
+    # with tele.client as client:
+    #       client.start()
+    #       client.send_message(67617730,'trying chatid')
+    #
+    #       # requires sign in using phone number
+    #       client.run_until_disconnected()
+    #       print("i'm here")
+    # do other things like wait for qr code
+
+    # stop listening
+    stop_listening(wait_for_stop = False)
+
+    # cleaning up
+    time.sleep(1)
