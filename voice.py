@@ -6,7 +6,14 @@ from wit import Wit as wit
 import telethontry as tele
 import asyncio
 
-async def handle_message(resp):
+##### SETUP #####
+# api_id = 524136
+# api_hash = '84360980c78595ec5fa48af726f8917c'
+# client = TelegramClient('elcie_client', api_id, api_hash)
+loop = asyncio.get_event_loop()
+#####
+
+def handle_message(resp):
     try:
         if "intent" not in resp['entities']:
             print("Sorry, I don't understand your intent.")
@@ -35,7 +42,8 @@ async def handle_message(resp):
             contact = resp['entities']['person'][0]['value']
             msg = resp['entities']['message_body'][0]['value']
             print("sending " + contact + " :" + msg + "..")
-            await tele.send_to(contact, msg)
+            loop = asyncio.get_event_loop()
+            loop.create_task(send_to(contact, msg))
 
         elif(intent == "get_weather"):
             # get current location
@@ -52,7 +60,7 @@ def recog_callback(r, audio):
     try:
         transcript = r.recognize_google(audio)
         print(transcript)
-        os.system("say "+ repr(transcript))
+        #os.system("say "+ repr(transcript))
         resp = interpreter.message(transcript)
         print(resp)
         loop = asyncio.get_event_loop()
@@ -65,11 +73,7 @@ def recog_callback(r, audio):
 	#print("Could not request results from Wit.ai service; {0}".format(e))
 
 def run():
-    access_token = 'YQA4LN7PWPCYQDY2YYFVUFTUXKBC4LIB'
-    r = sr.Recognizer()
-    mic = sr.Microphone()
-    interpreter = wit(access_token)
-
+    global mic
     with mic as source:
         r.adjust_for_ambient_noise(source)
 
@@ -79,30 +83,18 @@ def stop():
     stop_listening(wait_for_stop = False)
     time.sleep(1)
 
+
+
+
+
 if __name__ == "__main__":
     access_token = 'YQA4LN7PWPCYQDY2YYFVUFTUXKBC4LIB'
     r = sr.Recognizer()
     mic = sr.Microphone()
-
     interpreter = wit(access_token)
+    tele.mixer.init()
 
-    with mic as source:
-        r.adjust_for_ambient_noise(source)
-
-
-    stop_listening = r.listen_in_background(mic, recog_callback)
-
-    # with tele.client as client:
-    #       client.start()
-    #       client.send_message(67617730,'trying chatid')
-    #
-    #       # requires sign in using phone number
-    #       client.run_until_disconnected()
-    #       print("i'm here")
-    # do other things like wait for qr code
-
-    # stop listening
-    stop_listening(wait_for_stop = False)
-
-    # cleaning up
-    time.sleep(1)
+    tele.client.start()
+    run()
+    # requires sign in using phone number
+    tele.client.run_until_disconnected()

@@ -8,6 +8,7 @@ import time
 import json
 from wit import Wit as wit
 import asyncio
+import threading
 
 #################### INITIALISE  ###################
 api_id = 524136
@@ -23,6 +24,7 @@ loop = asyncio.get_event_loop()
 # {'crystal':'123456', 'adam':'234567',...}
 addr_book = {}
 addr_book["son"] = 67617730
+addr_book["nok"] = []
 last_messages = []
 last_msg = -1
 
@@ -55,6 +57,13 @@ async def send_to(person, msg):
     except:
         print(person + ' is not in your address book')
 
+async def send_to_id(id, msg):
+    try:
+        await client.send_message(id,msg)
+        return
+    except:
+        print('error in sending')
+
 # adding relationships using messages
 @client.on(events.NewMessage)
 async def add_rs_to_addr_book(event):
@@ -64,7 +73,10 @@ async def add_rs_to_addr_book(event):
         print('adding relationship')
         segment = msg.split("add relationship ")
         relation = (str(segment[1]))
-        addr_book[relation] = chat.id
+        if relation == "nok" or "NOK":
+            addr_book["nok"].append(chat.id)
+        else:
+            addr_book[relation] = chat.id
         print(addr_book)
         await client.send_message(chat,"Got it, " + relation + " has been added!")
         # add chat.name into addr_book
@@ -81,16 +93,16 @@ async def add_group_to_addr_book(event):
         await client.send_message(chat,"Okay, group " + relation + " has been added!")
         print(addr_book)
 
-# sending message to rs
-@client.on(events.NewMessage)
-async def send_to_relation(event):
-    msg = event.raw_text
-    # use voice command
-    if 'send to' in msg:
-        print('sending')
-        segment = msg.split("send to ")
-        relation = (str(segment[1]))
-        await send_to(relation, 'have you received')
+# # sending message to rs
+# @client.on(events.NewMessage)
+# async def send_to_relation(event):
+#     msg = event.raw_text
+#     # use voice command
+#     if 'send to' in msg:
+#         print('sending')
+#         segment = msg.split("send to ")
+#         relation = (str(segment[1]))
+#         await send_to(relation, 'have you received')
 
 # reading new messages
 @client.on(events.NewMessage)
@@ -98,7 +110,6 @@ async def read_message(event):
     sender = await event.get_sender()
    # if (sender.id == 67617730):
    #     return
-
     chat = await event.get_chat()
     stringToRead = ""
     stringToRead += "new message from " + str(sender.first_name)
@@ -112,27 +123,27 @@ async def read_message(event):
     print(last_messages[-1])
 
 
-@client.on(events.NewMessage)
-async def repeat_message(event):
-    #replace with voice
-    msg = str(event.raw_text).lower()
-    if "repeat message" in msg:
-        print("repeating message")
-        # change to -1 when using voice
-        print(repr(last_messages[-2].message))
+def repeat_message():
+    print("repeating message")
+    # change to -1 when using voice
+    say(repr(last_messages[-1].message))
+
+
 
 
 #################### VOICE #######################
 def handle_message(resp):
     try:
         if "intent" not in resp['entities']:
-            print("Sorry, I don't understand your intent.")
+            say("Sorry, I don't understand your intent.")
             return
         intent = resp['entities']['intent'][0]['value']
         if(intent == "get_help"):
             print("calling scdf..")
-            print("contacting NOK..")
 
+            print("contacting NOK..")
+            for nok in addr_book["nok"]:
+                loop.create_task(send_to_id(nok, "[IMPT ALERT] Crystal has triggered a help alert. Please respond immediately."))
         elif(intent == "control_appliance"):
             on_off = True if resp['entities']['on_off'][0]['value'] == "on" else False
             appliance = resp['entities']['appliance'][0]['value']
@@ -161,6 +172,8 @@ def handle_message(resp):
                 print("getting weather for " + date + "..")
             else:
                 print("getting weather for today..")
+        elif(intent == "repeat_message"):
+            repeat_message()
     except KeyError:
         print("Sorry, I could not get the information to complete the action.")
 
@@ -170,7 +183,7 @@ def recog_callback(r, audio):
     try:
         transcript = r.recognize_google(audio)
         print(transcript)
-        os.system("say "+ repr(transcript))
+        say(repr(transcript))
         resp = interpreter.message(transcript)
         print(resp)
         handle_message(resp)
@@ -192,10 +205,8 @@ def stop():
     stop_listening(wait_for_stop = False)
     time.sleep(1)
 
-
-# TODO Repeat message, search message
-# TODO Read only messages from other people
-if __name__ == "__main__":
+def start():
+    global r, mic, interpreter
     access_token = 'YQA4LN7PWPCYQDY2YYFVUFTUXKBC4LIB'
     r = sr.Recognizer()
     mic = sr.Microphone()
@@ -204,19 +215,22 @@ if __name__ == "__main__":
     mixer.init()
 
     client.start()
-    client.send_message(67617730,'trying chatid')
     run()
     # requires sign in using phone number
     client.run_until_disconnected()
 
-      # another option is have an async def and an asyncio.Queue(), that def just constantly awaits and the other thread puts things if __name__ == '__main__':
-    #   async def check():
-    #   x = await queue.get()
-    #   send_to(...)
-    #
-    # ...
-    # queue.put_nowait(x)
-    # ...
-    # loop.create_task(check())
-    # ...
-    # client.run_until_disconnected()
+
+# TODO Repeat message, search message
+# TODO Read only messages from other people
+if __name__ == "__main__":
+    threads = []
+    try:
+        t = threading.Thread(target = start)
+        threads.append(t)
+        t.start()
+        import qrcodescanner
+        t = threading.Thread(target = qrcodescanner.main)
+        threads.append(t)
+        t.start()
+    except Exception:
+        print(Exception)
