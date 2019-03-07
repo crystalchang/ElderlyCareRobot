@@ -225,12 +225,17 @@ def start():
 if __name__ == "__main__":
     threads = []
     try:
+        import Queue
+        my_queue = Queue.Queue()
         t = threading.Thread(target = start)
         threads.append(t)
         t.start()
         import qrcodescanner
-        t = threading.Thread(target = qrcodescanner.main)
+        t = threading.Thread(target = qrcodescanner.main, args=(my_queue,))
         threads.append(t)
         t.start()
+        # t.join()
+        print(queue.get())
     except Exception:
-        print(Exception)
+        import traceback
+        print(traceback.exc())
