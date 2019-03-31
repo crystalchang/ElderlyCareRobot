@@ -51,7 +51,6 @@ def centralise(pos):
 
 def findClosestFace(faces, user_box):
     centroidDist = []
-    # user_box == (x,y,w,h)
     user_centroid = (user_box[0]+(0.5*user_box[2]),user_box[1]+(0.5*user_box[3]))
 
     for (x, y, w, h) in faces:
@@ -130,8 +129,7 @@ def tracking(user, vs):
         frame = vs.read()
         frame = imutils.resize(frame, width=600)
         (h,w) = frame.shape[:2]
-        # print("[INFO] processing frame")
-        # image = frame
+
         faces = faceDetection(frame)
         if faces != ():
             # every nth frame, perform faceRecognition
@@ -197,8 +195,7 @@ def findUser(vs):
         frame = vs.read()
         frame = imutils.resize(frame, width=600)
         (h,w) = frame.shape[:2]
-        # print("[INFO] processing frame")
-        #image = frame
+
         faces = faceDetection(frame)
         print(faces)
 
@@ -256,13 +253,11 @@ if __name__ == "__main__":
     data = pickle.loads(open("dlib_encodings.pickle", "rb").read())
 
     # start FPS throughput estimator
-    #fps = FPS().start()
-    #starttime = time.time()
+    # fps = FPS().start()
 
     while True:
         user = findUser(vs)
         tracking(user, vs)
-        # if exit command, break
 
     # exiting
     #fps.stop()
