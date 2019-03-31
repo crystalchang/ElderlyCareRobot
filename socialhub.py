@@ -203,7 +203,7 @@ def stop():
 
 def start(queue):
     global r, mic, interpreter
-    access_token = 'YQA4LN7PWPCYQDY2YYFVUFTUXKBC4LIB'
+    access_token = 'REPLACE_WITH_WIT_ACCESS_TOKEN'
     r = sr.Recognizer()
     mic = sr.Microphone()
     interpreter = wit(access_token)
