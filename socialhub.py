@@ -12,16 +12,13 @@ import threading
 import webbrowser
 
 #################### INITIALISE  ###################
-api_id = 524136
-api_hash = '84360980c78595ec5fa48af726f8917c'
+api_id = "REPLACE_WITH_API_ID"
+api_hash = 'REPLACE_WITH_OWN_HASH'
 client = TelegramClient('elcie_client', api_id, api_hash)
 loop = asyncio.get_event_loop()
 #####################################################
 
 addr_book = {}
-# FOR TESTING
-#addr_book["daughter"] = 132781136
-#addr_book["family"] = 323803805
 addr_book["nok"] = []
 last_messages = []
 last_msg = -1
