@@ -1,0 +1,112 @@
+<!doctype html>
+<html>
+<title>Hello from Flask</title>
+<style>
+ body, html{
+   height:100%;
+   width:100%;
+   background-color: white;
+   align-content: center;
+ }
+ .screen{
+   display: inline-block;
+   height: 100%;
+   width: 45%;
+   margin-left: 10px;
+   margin-top: 10px;
+   align-content: center;
+ }
+ .col{
+   width: 45%;
+   height: 100%
+   padding: 20px;
+ }
+ .row{
+   width:100%;
+   height:46%;
+   margin-top: 0px;
+   margin-bottom: 20px;
+   margin-left: auto;
+   margin-right: auto;
+ }
+ .col1{
+   background-color: #eb6e80
+ }
+ .col2{
+   background-color: #e9b000
+ }
+ .col3{
+   background-color: #e24e42
+ }
+ .col4{
+   background-color: 	#008f95
+ }
+ .standby{
+   opacity:0.3;
+ }
+ p {
+   font-family: Helvetica;
+   color: white;
+   text-align: center;
+   font-size: 25px;
+   margin:10px;
+ }
+ img{
+   height:80%;
+   margin: auto;
+   display: block;
+ }
+</style>
+
+<body>
+  <!-- - 1st row ------->
+  <div class="row">
+    <!-- - 1st screen ------->
+    <div class="screen col1">
+      {% if service == "washing" %}
+        <p class="service">You have triggered {{ service }}!</p>
+      {% else %}
+        <p class="standby">standby..</p>
+      {% endif %}
+      <img src="/static/washing.png">
+    </div>
+
+
+    <!-- - 2nd screen ------->
+    <div class="screen col2">
+      {% if service == "tv"%}
+        <p class="service center">You have triggered {{ service }}!</p>
+      {% else %}
+        <p class="standby">standby..</p>
+      {% endif %}
+      <img src="/static/monitor.png">
+    </div>
+
+  </div>
+
+  <!-- - 2nd row ------->
+  <div class="row">
+    <!-- - 3rd screen ------->
+    <div class="screen col3">
+      {% if service == "coffee" %}
+        <p class="service">You have triggered {{ service }}!</p>
+      {% else %}
+        <p class="standby">standby..</p>
+      {% endif %}
+      <img src="/static/cofee.png">
+    </div>
+
+    <!-- - 4th screen ------->
+    <div class="screen col4">
+      {% if service == "lights" %}
+        <p class="service">You have triggered {{ service }}!</p>
+      {% else %}
+        <p class="standby">standby..</p>
+      {% endif %}
+      <img src="/static/lightbulb.png">
+    </div>
+  </div>
+
+
+</body>
+</html>

@@ -1,6 +1,6 @@
 from picamera import PiCamera
 from picamera.array import PiRGBArray
-from imutils.video import FPS
+# from imutils.video import FPS
 from imutils.video import VideoStream
 import numpy as np
 import face_recognition
@@ -13,41 +13,10 @@ import math
 
 ################### METHODS ###################
 
-def isDifferent(pos):
-    global lastpos, screenRes
-    # if centroid change less than 5% of screen resolution
-    lastcentroid = (lastpos[0]+0.5*lastpos[2], lastpos[1]+0.5*lastpos[3])
-    poscentroid = (pos[0]+0.5*pos[2], pos[1]+0.5*pos[3])
-    centroidDist = ((lastcentroid[0]-poscentroid[0])**2 + (lastcentroid[1]-poscentroid[1])**2)**0.5
-    screenDiag = (screenRes[0]**2 + screenRes[1]**2)**0.5
-    
-    if (centroidDist/screenDiag < 0.05):
-        print(" centroid/ screendiag" + str(centroid/screenDiag) + " not different")
-        return False
-    else:
-        lastpos = pos
-        print(" centroid/ screendiag" + str(centroid/screenDiag) + " different")
-        return True
-
-
-def notCentralised(pos):
-    global screenRes
-    # if centre of face is within 10% of the centre of the screen
-    print("post: " + str(pos))
-    limit = (screenRes[0]**2 + screenRed[1]**2)**0.5 * 0.1
-    posCentroid = (pos[0]+0.5*pos[2], pos[1]+0.5*pos[3])
-    disFromCentre = ((posCentroid[0]-screenRes[0])**2 + (posCentroid[1]-screenRes[1])**2)**0.5
-    if (disFromCentre < limit):
-        print("centralised")
-        return False
-    else:
-        print("not centralised")
-        return True
-
 def centralise(pos):
     global screenRes
     # calculate Asq and C
-    # send Asq and C, B is sonar
+    # send Asq and C, B is depth
     x = pos[0]
     y = pos[1]
     w = pos[2]
@@ -55,53 +24,66 @@ def centralise(pos):
     Asq = (y + (0.5*h))**2
     C = x + 0.5*w - (0.5*screenRes[0])
     B = 11935 * (w**(-1.068))
-    
+
     angle = math.atan2(C, (Asq+B**2)**0.5) * (180/3.141592)
-    if (B < 40 or B > 50):
+    print("x: " + str(x) + " w: " + str(w) + " C: " + str(C))
+    angle = angle * 0.6
+    print(angle)
+    if abs(angle) < 5:
+        angle = "0"
+    else:
+        angle = str(angle)[:str(angle).find(".")]
+
+    if (B < 35 or B > 55):
         depth = B - 45
-        depth = str(depth)[:3]
+        depth = str(depth)[:str(depth).find(".")]
     else:
         depth = "0"
-    
-    # send centralising commands "track depth angle"
-    msg = "track " + depth + " " + str(angle)[:2]
-    sendToMbot(msg)
-    
 
-def giveInstructions(pos):
-    x = pos[0]
-    y = pos[1]
-    w = pos[2]
-    h = pos[3]
-    # left and right edge
-    if (x < 125):
-        msg += " counter"
-    elif (x + w > 515):
-        msg += " clock"
-    # size of size
-    if (w < 180):
-        msg += " forward"
-    elif (w > 250):
-        msg += " back"
-    sendToMbot(msg)
-    
+    # send centralising commands "track depth angle"
+    msg = "track " + depth + " " + angle
+    if (msg != "track 0 0"):
+        sendToMbot(msg)
+        time.sleep(0.3)
+    else:
+        print("already centralised")
+    listenToMbot()
+
+def findClosestFace(faces, user_box):
+    centroidDist = []
+    # user_box == (x,y,w,h)
+    user_centroid = (user_box[0]+(0.5*user_box[2]),user_box[1]+(0.5*user_box[3]))
+
+    for (x, y, w, h) in faces:
+        centroid = (x+(0.5*w),y+(0.5*h))
+        xDiff = abs(user_centroid[0]-centroid[0])
+        yDiff = abs(user_centroid[1]-centroid[1])
+        centroidDist.append((xDiff**2 + yDiff**2)**0.5)
+
+    print("centroidDist: " + str(centroidDist))
+    if (min(centroidDist)>100):
+        return False
+    index = centroidDist.index(min(centroidDist))
+    return tuple(faces[index])
+
 def faceDetection(image):
+    global haar_face_cascade
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    
-    return haar_face_cascade.detectMultiScale(gray, scaleFactor=1.1, 
+
+    return haar_face_cascade.detectMultiScale(gray, scaleFactor=1.1,
             minNeighbors=5, minSize=(30, 30),
             flags=cv2.CASCADE_SCALE_IMAGE)
 
 def faceRecognition(image, faces):
     global data, threshold
-    
+
     rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     boxes = [(y, x + w, y + h, x) for (x, y, w, h) in faces]
     names = []
-    
+
     #use confidence value to find best match
     encodings = face_recognition.face_encodings(rgb, boxes)
-        
+
     # match found faces' encodings to known ones
     for encoding in encodings:
         distances = face_recognition.face_distance(data["encodings"],
@@ -115,52 +97,46 @@ def faceRecognition(image, faces):
             name = data["names"][index] + " "+ str(confidence)[:4] + "%"
         names.append(name)
     return zip(boxes, names)
-  
+
 ################## Communicate with Mbot ##################
 def sendToMbot(msg):
+    global ser
     ser.write(msg.encode())
     print("Sent: "+ msg)
-    # print("x: " + str(x) + " w: " + str(w))
-    # need to sleep
-    time.sleep(2)
-    
+    return
+
 def listenToMbot():
-    if (ser.inWaiting()> 0):
-        print("[debugging] in ser.inwaiting")
-        msg = ser.readline().decode()
-        print(msg)
-        print("Received: "+ str(msg))
-        
-        
+    print(2.1)
+    global ser
+    print("[debugging] in ser.inwaiting")
+    msg = ser.readline().decode()
+    print(msg)
+    print("Received: "+ str(msg))
+    return
+
+
 #####################################################
 ##################   MAIN()   #######################
 #####################################################
-        
-def tracking(user):
-    global fps, lastpos, screenRes, threshold, ser, vs, haar_face_cascade, data
-    
+
+def tracking(user, vs):
     # user = ((x, y, w, h), name)
-    print("start tracking")
-    print(user)
     user_box = user[0]
     name = user[1]
-    print(user_box)
-    
+
     n = -1
-    
     while True:
         # grab next frame
         frame = vs.read()
-        frame = imutils.resize(frame, width=500)
+        frame = imutils.resize(frame, width=600)
         (h,w) = frame.shape[:2]
         # print("[INFO] processing frame")
         # image = frame
         faces = faceDetection(frame)
-        
-        # every nth frame, check if user still in frame
-        if n == 9:
-            userMissing = True
-            if faces.any():
+        if faces != ():
+            # every nth frame, perform faceRecognition
+            if n == 9:
+                userMissing = True
                 recognised_faces = faceRecognition(frame, faces)
                 for ((top, right, bottom, left), name) in recognised_faces:
                     if (name != "Unknown"):
@@ -172,93 +148,71 @@ def tracking(user):
                     y = top - 15 if top - 15 > 15 else top + 15
                     cv2.putText(frame, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX,
                             0.75, (0, 255, 0), 2)
-        
-        else: # n > 0
-            
-            # find face closest to last face
-            userMissing = False
-            centroidDist = []
-            # user_box == (x,y,w,h)
-            user_centroid = (user_box[0]+(0.5*user_box[2]),user_box[1]+(0.5*user_box[3]))
-            print("user_centroid:")
-            print(user_centroid)
-            
-            for (x, y, w, h) in faces:
-                centroid = (x+(0.5*w),y+(0.5*h))                
-                xDiff = abs(user_centroid[0]-centroid[0])
-                yDiff = abs(user_centroid[1]-centroid[1])
-                centroidDist.append((xDiff**2 + yDiff**2)**0.5)
-                
-            print("centroidDist: ")
-            print(centroidDist)
-            
-            if (min(centroidDist)>100):
-                userMissing = True
-            index = centroidDist.index(min(centroidDist))
-            # follow the closest one
-            user_box = faces[index]
-            
-            # draw rectangles
-            i = 0
-            for (x,y,w,h) in faces:
-                cv2.rectangle(frame, (x, y), (x+w, y+h),
-                            (0, 255, 0), 2)
-                y = y - 15 if y - 15 > 15 else y + 15
-                if(i == index):
-                    cv2.putText(frame, name, (x, y), cv2.FONT_HERSHEY_SIMPLEX,
-                            0.75, (0, 255, 0), 2)
-                else:
-                    cv2.putText(frame, "Unknown", (x, y), cv2.FONT_HERSHEY_SIMPLEX,
-                            0.75, (0, 255, 0), 2)
-                i += 1
-            
-        # show frame
+            else: # other 9 frames
+                userMissing = False
+                if(n != -1): # find face closest to last face
+                    closest = findClosestFace(faces, user_box)
+                    if type(closest) == type(False):
+                        userMissing = True
+                    else:
+                        user_box = closest
+                # draw rectangles
+                for (x,y,w,h) in faces:
+                    cv2.rectangle(frame, (x, y), (x+w, y+h),
+                                (0, 255, 0), 2)
+                    y = y - 15 if y - 15 > 15 else y + 15
+                    face = (x,y,w,h)
+                    if ((x,y,w,h) == user_box):
+                        cv2.putText(frame, name, (x, y), cv2.FONT_HERSHEY_SIMPLEX,
+                                0.75, (0, 255, 0), 2)
+                    else:
+                        cv2.putText(frame, "Unknown", (x, y), cv2.FONT_HERSHEY_SIMPLEX,
+                                0.75, (0, 255, 0), 2)
+        else:
+            userMissing = True
         cv2.imshow('Frame',frame)
-        key = cv2.waitKey(0) & 0xFF
-        if key == ord("q"):
+        if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-        fps.update()
-    
+        #fps.update()
         if userMissing:
             return
-        
-        # increment one frame
-        n = (n+1)%10
-        
-        # track user
-        if(isDifferent(user_box) and notCentralised(user_box)):
-            print("centralising")
-            centralise(user_box)
-    
+        else:
+            # increment one frame
+            n = (n+1)%10
+            # track user
+            if(n%3 == 0):
+                centralise(user_box)
+
     cv2.destroyAllWindows()
     vs.stop()
-    
-def findUser():
-    global fps, lastpos, screenRes, threshold, ser, vs, haar_face_cascade, data
+
+def findUser(vs):
+    global lastpos
     doTracking = False
     # send to mbot msg to trigger rotate until sonar sequence
     sendToMbot("find")
     # continuously scan for face detections
     while True:
+        time.sleep(1.0)
         frame = vs.read()
-        frame = imutils.resize(frame, width=500)
+        frame = imutils.resize(frame, width=600)
         (h,w) = frame.shape[:2]
         # print("[INFO] processing frame")
         #image = frame
-        
         faces = faceDetection(frame)
-        
-        if faces.any():
+        print(faces)
+
+        if (faces != ()):
             print("face detected")
             print(faces)
             # get names of faces
             recognised_faces = faceRecognition(frame, faces)
             # check if face is user's
             for ((top, right, bottom, left), name) in recognised_faces:
-                print(name)
-                if ("Unknown" not in name):
+                if ("known" not in name):
                     doTracking = True
-                    user_coord = ((top, right, bottom, left), name)
+                    # user_coord = ((top, right, bottom, left), name)
+                    username = name
                     lastpos = (left, top, right-left, bottom-top)
                 # draw the predicted face name on the image
                 cv2.rectangle(frame, (left, top), (right, bottom),
@@ -267,31 +221,27 @@ def findUser():
                 cv2.putText(frame, name, (left, y), cv2.FONT_HERSHEY_SIMPLEX,
                         0.75, (0, 255, 0), 2)
         cv2.imshow('Frame',frame)
-        key = cv2.waitKey(0) & 0xFF
-        if key == ord("q"):
+        if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-        
-        fps.update()
+        #fps.update()
         listenToMbot()
         if doTracking:
-            # sendToMbot("stopFind")
-            print("do tracking")
-            return (lastpos,name)
+            return (lastpos,username)
         else:
             sendToMbot("find")
     cv2.destroyAllWindows()
     vs.stop()
-    
+
 if __name__ == "__main__":
-    
+
     ################ SETUP #################
     # setting up variables
-    screenRes = [500,375]
+    screenRes = [600,450]
     lastpos = (0,0,0,0)
     threshold = 0.6
 
     # setting up bluetooth serial port
-    ser = serial.Serial("/dev/rfcomm0", baudrate=115200)
+    ser = serial.Serial("/dev/rfcomm0", baudrate=115200, timeout=1)
 
     print("[INFO] setting up camera")
 
@@ -306,21 +256,15 @@ if __name__ == "__main__":
     data = pickle.loads(open("dlib_encodings.pickle", "rb").read())
 
     # start FPS throughput estimator
-    fps = FPS().start()
-    starttime = time.time()
-    
-    #global fps, vs
+    #fps = FPS().start()
+    #starttime = time.time()
 
     while True:
-        user = findUser()
-        tracking(user)
+        user = findUser(vs)
+        tracking(user, vs)
         # if exit command, break
-    
+
     # exiting
-    fps.stop()
+    #fps.stop()
     print("[INFO] elapsed time: {:.2f}".format(fps.elapsed()))
     print("[INFO] approx FPS: {:.2f}".format(fps.fps()))
-    
-    
-    
-    

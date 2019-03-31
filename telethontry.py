@@ -9,6 +9,7 @@ import json
 from wit import Wit as wit
 import asyncio
 import threading
+import webbrowser
 
 #################### INITIALISE  ###################
 api_id = 524136
@@ -23,7 +24,8 @@ loop = asyncio.get_event_loop()
 # {'daughter':'123456', 'son':'234567',...}
 # {'crystal':'123456', 'adam':'234567',...}
 addr_book = {}
-addr_book["son"] = 67617730
+addr_book["daughter"] = 132781136
+addr_book["family"] = 323803805
 addr_book["nok"] = []
 last_messages = []
 last_msg = -1
@@ -46,13 +48,21 @@ def say(stringToRead):
     mixer.music.load("tts.mp3")
     mixer.music.play()
 
+def repeat_message():
+    print("repeating message")
+    # change to -1 when using voice
+    say(repr(last_messages[-1].message))
+
+#def qr_take_photo(queue):
+
+
 async def send_to(person, msg):
     try:
         if "my" in person:
             person = person[3:]
-        chat = addr_book[person]
-        print(" sending" + str(chat) + msg)
-        await client.send_message(int(chat),msg)
+        for chat in addr_book[person]:
+            print(" sending" + str(chat) + msg)
+            await client.send_message(int(chat),msg)
         return
     except:
         print(person + ' is not in your address book')
@@ -63,6 +73,16 @@ async def send_to_id(id, msg):
         return
     except:
         print('error in sending')
+
+async def send_photo(person):
+    try:
+        if "my" in person:
+            person = person[3:]
+        chat = addr_book[person]
+        await client.send_file(int(chat), "takephoto.png")
+        print("sending photo")
+    except Exception as e:
+        print(e)
 
 # adding relationships using messages
 @client.on(events.NewMessage)
@@ -123,12 +143,6 @@ async def read_message(event):
     print(last_messages[-1])
 
 
-def repeat_message():
-    print("repeating message")
-    # change to -1 when using voice
-    say(repr(last_messages[-1].message))
-
-
 
 
 #################### VOICE #######################
@@ -152,6 +166,7 @@ def handle_message(resp):
                 room = "in the " + resp['entities']['room'][0]['value']
             if(on_off):
                 print("turning on " + appliance + room + "..")
+                webbrowser.open("http://127.0.0.1:5000/service/"+appliance)
             else:
                 print("turning off " + appliance + room + "..")
 
@@ -160,10 +175,15 @@ def handle_message(resp):
             print("calling " + contact + "..")
 
         elif(intent == "send_message"):
-            contact = resp['entities']['person'][0]['value']
             msg = resp['entities']['message_body'][0]['value']
-            print("sending " + contact + " :" + msg + "..")
-            loop.create_task(send_to(contact, msg))
+            if 'person' in resp['entities']:
+                contact = resp['entities']['person'][0]['value']
+                print("sending " + contact + " :" + msg + "..")
+                loop.create_task(send_to(contact, msg))
+            elif 'group' in resp['entities']:
+                contact = resp['entities']['group'][0]['value']
+                print("sending " + contact + " :" + msg + "..")
+                loop.create_task(send_to(contact, msg))
 
         elif(intent == "get_weather"):
             # get current location
@@ -176,6 +196,13 @@ def handle_message(resp):
             repeat_message()
     except KeyError:
         print("Sorry, I could not get the information to complete the action.")
+
+def handle_qr(req):
+    if 'photo' in req:
+        loop.create_task(send_photo(req[6:]))
+    if 'help' in req:
+        loop.create_task(send_to("nok", "[IMPT ALERT] Crystal has triggered a help alert. Please respond immediately."))
+
 
 
 def recog_callback(r, audio):
@@ -205,7 +232,7 @@ def stop():
     stop_listening(wait_for_stop = False)
     time.sleep(1)
 
-def start():
+def start(queue):
     global r, mic, interpreter
     access_token = 'YQA4LN7PWPCYQDY2YYFVUFTUXKBC4LIB'
     r = sr.Recognizer()
@@ -225,9 +252,9 @@ def start():
 if __name__ == "__main__":
     threads = []
     try:
-        import Queue
-        my_queue = Queue.Queue()
-        t = threading.Thread(target = start)
+        import queue
+        my_queue = queue.Queue()
+        t = threading.Thread(target = start, args=(my_queue,))
         threads.append(t)
         t.start()
         import qrcodescanner
@@ -235,7 +262,16 @@ if __name__ == "__main__":
         threads.append(t)
         t.start()
         # t.join()
-        print(queue.get())
+
+        #handling requests from qrcode scanner
+        while (True):
+            if (my_queue.empty()):
+                continue
+            else:
+                req = str(my_queue.get())
+                print("IN QUEUE" + req)
+                handle_qr(req)
+
     except Exception:
         import traceback
         print(traceback.exc())
