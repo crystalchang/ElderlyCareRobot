@@ -1,6 +1,5 @@
 from picamera import PiCamera
 from picamera.array import PiRGBArray
-# from imutils.video import FPS
 from imutils.video import VideoStream
 import numpy as np
 import face_recognition
@@ -26,9 +25,7 @@ def centralise(pos):
     B = 11935 * (w**(-1.068))
 
     angle = math.atan2(C, (Asq+B**2)**0.5) * (180/3.141592)
-    print("x: " + str(x) + " w: " + str(w) + " C: " + str(C))
     angle = angle * 0.6
-    print(angle)
     if abs(angle) < 5:
         angle = "0"
     else:
@@ -59,7 +56,6 @@ def findClosestFace(faces, user_box):
         yDiff = abs(user_centroid[1]-centroid[1])
         centroidDist.append((xDiff**2 + yDiff**2)**0.5)
 
-    print("centroidDist: " + str(centroidDist))
     if (min(centroidDist)>100):
         return False
     index = centroidDist.index(min(centroidDist))
@@ -105,11 +101,8 @@ def sendToMbot(msg):
     return
 
 def listenToMbot():
-    print(2.1)
     global ser
-    print("[debugging] in ser.inwaiting")
     msg = ser.readline().decode()
-    print(msg)
     print("Received: "+ str(msg))
     return
 
@@ -171,7 +164,6 @@ def tracking(user, vs):
         cv2.imshow('Frame',frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-        #fps.update()
         if userMissing:
             return
         else:
@@ -220,7 +212,6 @@ def findUser(vs):
         cv2.imshow('Frame',frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
-        #fps.update()
         listenToMbot()
         if doTracking:
             return (lastpos,username)
@@ -251,9 +242,6 @@ if __name__ == "__main__":
     print("[INFO] loading haar detector and dlib encodings")
     haar_face_cascade=cv2.CascadeClassifier("/home/pi/Desktop/OpenCV/face_detection/haarcascade_frontalface_default.xml")
     data = pickle.loads(open("dlib_encodings.pickle", "rb").read())
-
-    # start FPS throughput estimator
-    # fps = FPS().start()
 
     while True:
         user = findUser(vs)
