@@ -18,14 +18,10 @@ client = TelegramClient('elcie_client', api_id, api_hash)
 loop = asyncio.get_event_loop()
 #####################################################
 
-# {'123456': {'name': 'crystal', 'relationship':'daughter',
-#       'username':'crystalchang'}
-# }
-# {'daughter':'123456', 'son':'234567',...}
-# {'crystal':'123456', 'adam':'234567',...}
 addr_book = {}
-addr_book["daughter"] = 132781136
-addr_book["family"] = 323803805
+# FOR TESTING
+#addr_book["daughter"] = 132781136
+#addr_book["family"] = 323803805
 addr_book["nok"] = []
 last_messages = []
 last_msg = -1
@@ -42,7 +38,6 @@ def add_to_recent(msg_id):
 
 
 def say(stringToRead):
-    #stringToRead = stringToRead.replace("''", "")
     tts = gtts(text=repr(stringToRead), lang="en")
     tts.save("tts.mp3")
     mixer.music.load("tts.mp3")
@@ -52,9 +47,6 @@ def repeat_message():
     print("repeating message")
     # change to -1 when using voice
     say(repr(last_messages[-1].message))
-
-#def qr_take_photo(queue):
-
 
 async def send_to(person, msg):
     try:
@@ -99,7 +91,6 @@ async def add_rs_to_addr_book(event):
             addr_book[relation] = chat.id
         print(addr_book)
         await client.send_message(chat,"Got it, " + relation + " has been added!")
-        # add chat.name into addr_book
 
 @client.on(events.NewMessage)
 async def add_group_to_addr_book(event):
@@ -113,26 +104,14 @@ async def add_group_to_addr_book(event):
         await client.send_message(chat,"Okay, group " + relation + " has been added!")
         print(addr_book)
 
-# # sending message to rs
-# @client.on(events.NewMessage)
-# async def send_to_relation(event):
-#     msg = event.raw_text
-#     # use voice command
-#     if 'send to' in msg:
-#         print('sending')
-#         segment = msg.split("send to ")
-#         relation = (str(segment[1]))
-#         await send_to(relation, 'have you received')
-
-# reading new messages
 @client.on(events.NewMessage)
 async def read_message(event):
     sender = await event.get_sender()
-   # if (sender.id == 67617730):
-   #     return
+    if (sender.id == 67617730):
+        return
     chat = await event.get_chat()
     stringToRead = ""
-    stringToRead += "new message from " + str(sender.first_name)
+    stringToRead += "new message from " + str(sender.first_name) + " "
     # from a group chat
     if (chat.id != sender.id):
         stringToRead += " from chat group " + str(chat.title)
@@ -143,8 +122,6 @@ async def read_message(event):
     print(last_messages[-1])
 
 
-
-
 #################### VOICE #######################
 def handle_message(resp):
     try:
@@ -153,8 +130,6 @@ def handle_message(resp):
             return
         intent = resp['entities']['intent'][0]['value']
         if(intent == "get_help"):
-            print("calling scdf..")
-
             print("contacting NOK..")
             for nok in addr_book["nok"]:
                 loop.create_task(send_to_id(nok, "[IMPT ALERT] Crystal has triggered a help alert. Please respond immediately."))
@@ -203,8 +178,6 @@ def handle_qr(req):
     if 'help' in req:
         loop.create_task(send_to("nok", "[IMPT ALERT] Crystal has triggered a help alert. Please respond immediately."))
 
-
-
 def recog_callback(r, audio):
     global interpreter
     try:
@@ -219,7 +192,6 @@ def recog_callback(r, audio):
         print("I could not understand audio")
     except sr.RequestError as e:
         print("Could not request results from Google service; {0}".format(e))
-	#print("Could not request results from Wit.ai service; {0}".format(e))
 
 def run():
     global mic
@@ -247,8 +219,8 @@ def start(queue):
     client.run_until_disconnected()
 
 
-# TODO Repeat message, search message
-# TODO Read only messages from other people
+
+
 if __name__ == "__main__":
     threads = []
     try:
@@ -261,7 +233,6 @@ if __name__ == "__main__":
         t = threading.Thread(target = qrcodescanner.main, args=(my_queue,))
         threads.append(t)
         t.start()
-        # t.join()
 
         #handling requests from qrcode scanner
         while (True):

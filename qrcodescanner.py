@@ -13,7 +13,6 @@ from gtts import gTTS as gtts
 from pygame import mixer
 
 def say(stringToRead):
-    #stringToRead = stringToRead.replace("''", "")
     tts = gtts(text=repr(stringToRead), lang="en")
     tts.save("tts.mp3")
     mixer.music.load("tts.mp3")
@@ -66,8 +65,6 @@ def main(queue):
         qrcodes = pyzbar.decode(image)
         for qr in qrcodes:
             request = str(qr.data)[2:-1]
-            #
-            #print('Polygon points: ' + str(qr.polygon))
             points = [[x,y] for x, y in qr.polygon]
             cv2.polylines(image, [np.array(points)], True, (255, 0, 255),3)
             if(request != lastrequest):
@@ -77,7 +74,6 @@ def main(queue):
         count = (count + 1)%100
         if count == 99:
             lastrequest=""
-        #display frame
         cv2.imshow('QR Code Scanner',image)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
